@@ -29,9 +29,9 @@ CFLAGS=-O2 -g -Wall -Wextra -Werror
 CFLAGS+=-Wno-unused-parameter -Wno-unused-variable
 CFLAGS+=-Wno-unused-but-set-variable
 CFLAGS+=-std=c99 -pedantic
-LDFLAGS=
+LDFLAGS=-lrt
 _MAINTEST=main.o
-_MODULES=szb.o console.o timer.o net.o options.o tables.o
+_MODULES=szb.o console.o timer.o net.o options.o tables.o alltabs.o router.o reliable.o command.o
 MAINTEST=$(patsubst %, $(ODIR)/%, $(_MAINTEST))
 MODULES=$(patsubst %, $(ODIR)/%, $(_MODULES))
 OBJS=$(MAINTEST) $(MODULES)

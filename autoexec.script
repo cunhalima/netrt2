@@ -1,2 +1,7 @@
-/showtime 9500
+#/showtime 1500
 #/stall
+/infinity 100
+/hbtime 2000
+/hctime 10000
+/dropadd 1
+/rattempts 10

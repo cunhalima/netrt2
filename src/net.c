@@ -95,6 +95,11 @@ bool net_send(int node, szb_t *msg) {
         con_errorf("cheater!! %d is not your neighbour\n", node);
         return false;
     }
+    if (options.errRate > 0) {
+        if ((rand() % 100) < options.errRate) {
+            return true;
+        }
+    }
     return net_secretsend(node, msg);
 }
 
@@ -191,7 +196,7 @@ static bool loadRouters() {
  * loadLinks()
  *------------------------------
  */
-static bool loadLinks() {
+bool net_loadLinks() {
     FILE *file;
     int a, b, cost;
     static char filename[] = "enlaces.config";
@@ -201,20 +206,22 @@ static bool loadLinks() {
         con_errorf("unable to open %s\n", filename);
         return false;
     }
-    tab_dvset(options.id, 0);
+    set_neighbour_cost(options.id, 0);
+    set_rt_via(options.id, -1);
+    set_rt_distance(options.id, 0);
+    set_dv_distance(options.id, options.id, 0);
     while(fscanf(file, "%d %d %d", &a, &b, &cost) == 3) {
+        int neighbour;
+
         if (a == options.id) {
-            tab_dvset(b, cost);
-            tab_nhset(b, b);
-            tab_fdset(b, cost);
-            tab_dnset(b, false);
+            neighbour = b;
+        } else if (b == options.id) {
+            neighbour = a;
+        } else {
+            continue;
         }
-        if (b == options.id) {
-            tab_dvset(a, cost);
-            tab_nhset(a, a);
-            tab_fdset(a, cost);
-            tab_dnset(a, false);
-        }
+        set_neighbour_cost(neighbour, cost);
+        add_neighbour(neighbour);
     }
     fclose(file);
     return true;
@@ -230,7 +237,7 @@ bool net_init(void) {
         net_cleanup();
         return false;
     }
-    if (!loadLinks()) {                                 /* carrega os links dos roteadores vizinhos */
+    if (!net_loadLinks()) {                                 /* carrega os links dos roteadores vizinhos */
         net_cleanup();
         return false;
     }

@@ -6,6 +6,7 @@
 #undef __USE_XOPEN2K
 #undef __USE_POSIX199309
 //#undef __USE_MISC
+#include <stdlib.h>
 #include "defs.h"
 #if 0
 #include <stdlib.h>
@@ -60,4 +61,8 @@ void sys_sleep(int milli) {
     tp.tv_sec = milli / 1000;
     tp.tv_nsec = (milli % 1000) * 1000000;
     clock_nanosleep(CLOCK_REALTIME, 0, &tp, NULL);
+}
+
+void sys_init(void) {
+    srand(time(NULL));
 }

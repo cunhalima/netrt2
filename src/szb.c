@@ -173,3 +173,9 @@ bool szb_eof(szb_t *buf) {
     }
     return false;
 }
+
+void szb_clear(szb_t *buf) {
+    assert(buf != NULL);
+    buf->size = 0;
+    buf->pos = 0;
+}
