@@ -76,7 +76,12 @@ struct options_s {
     int infinity;
     int rtimeout;
     int rattempts;
+    int ttl;
     bool rdebug;
+    bool debugroute;
+    bool debuglost;
+    bool debugpacket;
+    bool debugrt;
 };
 typedef struct options_s options_t;
 extern options_t options;
@@ -115,6 +120,7 @@ int get_dv_distance(int via, int to);
 int num_destinations(void);
 bool add_neighbour(int node);
 void print_tabs(void);
+void print_rtab(void);
 void tabs_resetconn(void);
 
 /* router.c */

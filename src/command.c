@@ -12,6 +12,53 @@ static void cmd_showtime(const char *args) {            // alterar o intervalo d
     }
 }
 
+static void cmd_ttl(const char *args) {                // time to live
+    if (sscanf(args, "%d", &options.ttl) != 1) {
+        con_error("usage: ttl <ttl>\n");
+        return;
+    }
+}
+
+static void cmd_debugrt(const char *args) {                // mostrar alteracoes na tabela de roteamento (debug)
+    int yesno;
+
+    if (sscanf(args, "%d", &yesno) != 1) {
+        con_error("usage: debugrt <0/1>\n");
+        return;
+    }
+    options.debugrt = yesno;
+}
+
+static void cmd_debugpacket(const char *args) {                // mostrar envio/recebimento de pacotes (debug)
+    int yesno;
+
+    if (sscanf(args, "%d", &yesno) != 1) {
+        con_error("usage: debugpacket <0/1>\n");
+        return;
+    }
+    options.debugpacket = yesno;
+}
+
+static void cmd_debuglost(const char *args) {                // mostrar perda de pacotes (debug)
+    int yesno;
+
+    if (sscanf(args, "%d", &yesno) != 1) {
+        con_error("usage: debuglost <0/1>\n");
+        return;
+    }
+    options.debuglost = yesno;
+}
+
+static void cmd_debugroute(const char *args) {                // mostrar msgs de roteamento (debug)
+    int yesno;
+
+    if (sscanf(args, "%d", &yesno) != 1) {
+        con_error("usage: debugroute <0/1>\n");
+        return;
+    }
+    options.debugroute = yesno;
+}
+
 static void cmd_drop(const char *args) {                // derrubar um vizinho manualmente (debug)
     int node;
 
@@ -63,6 +110,16 @@ static void cmdparser(const char *text) {               // faz o parsing da linh
         if ((strcmp(text, "tabs") == 0) ||
             (strcmp(text, "t") == 0)) {
             cmd_tabs();
+        } else if (strncmp(text, "ttl ", 3) == 0) {
+            cmd_ttl(&text[3]);
+        } else if (strncmp(text, "debugrt ", 8) == 0) {
+            cmd_debugrt(&text[8]);
+        } else if (strncmp(text, "debugpacket ", 12) == 0) {
+            cmd_debugpacket(&text[12]);
+        } else if (strncmp(text, "debuglost ", 10) == 0) {
+            cmd_debuglost(&text[10]);
+        } else if (strncmp(text, "debugroute ", 11) == 0) {
+            cmd_debugroute(&text[11]);
         } else if (strncmp(text, "drop ", 5) == 0) {
             cmd_drop(&text[5]);
         } else if (strncmp(text, "showtime ", 9) == 0) {
@@ -110,7 +167,9 @@ static void cmdparser(const char *text) {               // faz o parsing da linh
         while (*text == ' ') {
             text++;
         }
-        rbl_sendmessage(dst, text);                     // manda uma msg confiável (agora text aponta pro início da msg)
+        if (*text != '\0') {
+            rbl_sendmessage(dst, text);                     // manda uma msg confiável (agora text aponta pro início da msg)
+        }
     }
 }
 

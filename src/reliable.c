@@ -16,6 +16,8 @@ static int sendtarget;
 static int sendtime;
 static int attempts;
 
+// <command> <to> <from> <timetolive> <seqno> <msg>
+
 void rbl_init(void) {                   // inicia sistema de msgs confiáveis
     pending = false;
     sndbuf = szb_create();
@@ -24,6 +26,24 @@ void rbl_init(void) {                   // inicia sistema de msgs confiáveis
 void rbl_cleanup(void) {                // libera sistema de msgs confiáveis
     szb_free(sndbuf);
     sndbuf = NULL;
+}
+
+static void my_router_sendmsg(int to, szb_t *msg) {
+    assert(msg != NULL);
+    if (options.debugroute) {
+        szb_rewind(msg);
+        szb_read8(msg);
+        int to = szb_read8(msg);                        // pega o destino da msg
+        int from = szb_read8(msg);                      // identifica o remetente
+        int ttl = szb_read8(msg);                      // identifica o remetente
+        int seqno = 0;
+        #ifdef USE_SEQ
+        seqno = szb_read32(msg);                        // pega o numero de sequencia
+        #endif
+        int via = get_rt_via(to);
+        con_printf("[DEBUG] router %d: msg seqno=%d ttl=%d to %d (src=%d, dst=%d)\n", options.id, seqno, ttl, via, from, to);
+    }
+    router_sendmessage(to, msg);
 }
 
 #ifdef USE_SEQ
@@ -37,10 +57,11 @@ void rbl_confirm(int from) {
     szb_write8(msg, CMD_CONFIRM);           // msg CONFIRM
     szb_write8(msg, from);                  // mandar para a origem da msg confiável
     szb_write8(msg, options.id);            // nos identifica como remetente
+    szb_write8(msg, options.ttl);           // time to live
     #ifdef USE_SEQ
     szb_write32(msg, seqno);                // manda a sequência
     #endif
-    router_sendmessage(from, msg);          // manda a msg
+    my_router_sendmsg(from, msg);          // manda a msg
     szb_free(msg);
 
 }
@@ -52,18 +73,26 @@ static void print_received_msg(int from, const char *msg) {     // mostra na tel
 void rbl_readmessage(int cmd, szb_t *msg) {         // processa a msg que recebeu
     assert(msg != NULL);
     int to;
-    int seqno;
+    int seqno = 0;
 
     to = szb_read8(msg);                            // pega o destino da msg
-    if (to != options.id) {                         // se não for eu o destinatário,
-        //con_printf("to %d\n", to);
-        router_sendmessage(to, msg);                //  manda pro destino correto
-        return;
-    }
     int from = szb_read8(msg);                      // identifica o remetente
+    int ttl = szb_read8(msg);                      // identifica o remetente
     #ifdef USE_SEQ
     seqno = szb_read32(msg);                        // pega o numero de sequencia
     #endif
+    if (to != options.id) {                         // se não for eu o destinatário,
+        if (ttl != 0) {
+            ttl--;
+            szb_rewind(msg);
+            szb_read8(msg);    // cmd
+            szb_read8(msg);    // to
+            szb_read8(msg);    // from
+            szb_write8(msg, ttl);       // decrementa timetolive
+            my_router_sendmsg(to, msg);                //  manda pro destino correto
+        }
+        return;
+    }
     switch (cmd) {
         case CMD_CHAT:                              // recebeu uma msg de bate-papo
             #ifdef USE_SEQ
@@ -75,7 +104,7 @@ void rbl_readmessage(int cmd, szb_t *msg) {         // processa a msg que recebe
             } else {                                    // se não for a seq esperada
                 int expected = get_node_inseqno(from);
                 if (options.rdebug) {                   // mostra o problema (debug)
-                    con_printf("got OOOMSG from %d (expected %d got %d)\n", from, expected, seqno);
+                    con_printf("[DEBUG] got out-of-order from %d (expected seq=%d got seq=%d)\n", from, expected, seqno);
                 }
                 if (expected < seqno) {     // Isso serve  pra tratar o caso em que o nodo é reiniciado (espera sequencia menor do q recebe)
                     print_received_msg(from, szb_getPosPtr(msg));       // mostra mesmo assim
@@ -97,7 +126,7 @@ void rbl_readmessage(int cmd, szb_t *msg) {         // processa a msg que recebe
                 pending = false;                    // e desbloqueia o envio de msgs de bate-papo
             }
             #else
-            con_printf("other side got my msg\n");
+            con_printf("(MSG to %d sucessful): %s\n", from, szb_getPtr(sndbuf)); // mostra q foi OK
             pending = false;
             #endif
             break;
@@ -108,11 +137,15 @@ void rbl_readmessage(int cmd, szb_t *msg) {         // processa a msg que recebe
 
 void rbl_sendmessage(int dst, const char *text) {       // guarda no buffer a msg para ser enviada de forma confiável
     if (dst < 0) {
-        con_printf("no broadcast by now\n");
+        con_printf("[ERROR] broadcast not implemented\n");
         return;
     }
     if (pending) {                                      // só tratamos uma msg de cada vez
-        con_printf("cant say now, msg pending\n");
+        con_printf("[ERROR] can't speak for now, msg pending\n");
+        return;
+    }
+    if (strlen(text) > 100) {
+        con_printf("[ERROR] chat message has 100 characters limit, sorry\n");
         return;
     }
     szb_clear(sndbuf);                      // guarda no buffer
@@ -138,7 +171,16 @@ void rbl_logic(void) {              // essa função é chamada o tempo todo (um
     }
     attempts--;                     // decrementa o número de tentativas
     if (attempts < 0) {             // esgotou o n. de tentativas
-        con_printf("(ERROR): Unable to deliver reliably to %d\n", sendtarget);
+        con_printf("[ERROR] unable to deliver reliably to %d\n", sendtarget);
+        int seqno = get_node_outseqno(sendtarget);  // avança o n. de sequencia
+        ADVANCE_SEQ(seqno);
+        set_node_outseqno(sendtarget, seqno);
+        pending = false;            // e desbloqueia para envio de novas msgs
+        return;
+    }
+    int via = get_rt_via(sendtarget);
+    if (via < 0) {
+        con_printf("[ERROR] destination %d unreachable\n", sendtarget);
         int seqno = get_node_outseqno(sendtarget);  // avança o n. de sequencia
         ADVANCE_SEQ(seqno);
         set_node_outseqno(sendtarget, seqno);
@@ -150,13 +192,20 @@ void rbl_logic(void) {              // essa função é chamada o tempo todo (um
     szb_write8(msg, CMD_CHAT);      // prepara a msg confiável <comando> <dstino> <origem> <sequencia> <msg>
     szb_write8(msg, sendtarget);
     szb_write8(msg, options.id);
+    szb_write8(msg, options.ttl);
+    int seqno = 0;
     #ifdef USE_SEQ
-    szb_write32(msg, get_node_outseqno(sendtarget));
+    seqno = get_node_outseqno(sendtarget);
+    szb_write32(msg, seqno);
     #endif
     szb_writeCStr(msg, (const char *)szb_getPtr(sndbuf));
-    router_sendmessage(sendtarget, msg);    // manda a msg pelo roteador
+    //if (options.debugroute) {
+    //    int via = get_rt_via(sendtarget);
+    //    con_printf("[DEBUG] router %d: msg seqno=%d to %d (src=%d, dst=%d)\n", options.id, seqno, via, options.id, sendtarget);
+    //}
+    my_router_sendmsg(sendtarget, msg);    // manda a msg pelo roteador
     szb_free(msg);
     if (options.rdebug) {
-        con_printf("rsnd attempt\n");
+        con_printf("[DEBUG] reliable send attempt\n");
     }
 }

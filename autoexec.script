@@ -1,7 +1,35 @@
+# Tire o comentário da linha abaixo para definir de quanto em quanto tempo as tabelas são impressas na tela
 #/showtime 1500
+
+# Tire o comentário da linha abaixo para congelar o algoritmo
 #/stall
+
+# Tire o comentário da linha abaixo para definir o infinito (impedir contagem ao infinito)
 /infinity 100
-/hbtime 2000
-/hctime 10000
+
+# Tire o comentário da linha abaixo para definir o timeout do heartbeat
+/hbtime 5000
+
+# Tire o comentário da linha abaixo para definir o timeout do heartcheck
+/hctime 15000
+
+# Tire o comentário da linha abaixo para mostrar mensagens de nodo adicionado / nodo derrubado
 /dropadd 1
+
+# Tire o comentário da linha abaixo para definir a quantidade de tentativas de envio de msg confiável
 /rattempts 10
+
+# Tire o comentário da linha abaixo para habilitar msgs de debug de roteamento
+/debugroute 1
+
+# Tire o comentário da linha abaixo para habilitar msgs de debug de pacotes perdidos
+/debuglost 0
+
+# Tire o comentário da linha abaixo para habilitar msgs de debug de pacotes
+/debugpacket 0
+
+# Tire o comentário da linha abaixo para habilitar msgs de debug de roteamento
+/debugrt 1
+
+# Tire o comentário da linha abaixo para ajustar o time to live
+/ttl 5

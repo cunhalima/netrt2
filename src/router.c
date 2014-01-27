@@ -14,7 +14,6 @@ HEARTCHECK é a verificação periódica se algum vizinho parou de mandar msgs (
 
 #define CMD_DV      (CMD_ROUTER+1)
 
-static int startTime;
 static int time;
 static int nextHeartBeat;
 static int nextHeartCheck;
@@ -47,6 +46,10 @@ void send_dv(void) {            // manda o vetor de distancias pros vizinhos
     szb_free(msg);
 }
 
+static void my_print_rtab(void) {
+    con_printf("[DEBUG] current routing table (timestamp = %d):\n", sys_getMilli());
+    print_rtab();
+}
 
 void router_dropcheck(void) {           // verifica se algum vizinho caiu
     int i;
@@ -87,6 +90,9 @@ void router_dropcheck(void) {           // verifica se algum vizinho caiu
     if (dropped) {              // se alguémm foi derrubado, recalcula as rotas
         update_rt();
         send_dv();
+        if (options.debugrt) {
+            my_print_rtab();
+        }
     }
 }
 
@@ -119,10 +125,10 @@ bool update_rt(void) {                  // recálculo das rotas
 
             if (options.show_dropadd) {                 // mostra o q fez na tela (debug)
                 if (!DIST_EXISTS(olddist)) {
-                    con_printf("adding node %d\n", to);
+                    con_printf("[DEBUG] adding node %d\n", to);
                 }
                 if (!DIST_EXISTS(mindist)) {
-                    con_printf("dropping node %d\n", to);
+                    con_printf("[DEBUG] dropping node %d\n", to);
                 }
             }
         }
@@ -166,15 +172,35 @@ void recv_dv(szb_t *msg) {          // recebemos um vetor distancia de um vizinh
     }
     if (changed) {
         send_dv();
+        if (options.debugrt) {
+            my_print_rtab();
+        }
+    }
+}
+
+void reset_timeouts(void) {
+    int startTime = time = sys_getMilli();                     /* Inicia o cronometro */
+    nextHeartBeat = startTime + options.heartbeat;      // próximo hertbeat
+    nextHeartCheck = startTime + options.heartcheck;       // ajusta tempo de heartcheck para não derrubar os vizinhos lodo de cara 
+    nextShow = startTime + options.showtime;            // próxima mostrada de tabelas (debug)
+}
+
+void router_restart(void) {         // reiniciar o roteador
+    tabs_cleanup();
+    tabs_init();
+    net_loadLinks();                // descobre os vizinhos
+    time = sys_getMilli();
+    router_heartbeat();             // faz o heartbeat logo que acorda
+    reset_timeouts();
+    if (options.debugrt) {
+        my_print_rtab();
     }
 }
 
 void router_init(void) {
-    startTime = time = sys_getMilli();                     /* Inicia o cronometro */
+    router_restart();
     con_runfile("autoexec.script");
-    int nextHeartBeat = startTime + options.heartbeat;      // próximo hertbeat
-    int nextHeartCheck = startTime + options.heartcheck;    // pŕoximo heartcheck
-    int nextShow = startTime + options.showtime;            // próxima mostrada de tabelas (debug)
+    reset_timeouts();
 }
 
 void router_cleanup(void) {
@@ -224,11 +250,4 @@ void router_sendmessage(int dst, szb_t *msg) {          // para mandar algo pelo
     if (via >= 0) {
         net_send(via, msg);             // manda!!
     }
-}
-
-void router_restart(void) {         // reiniciar o roteador
-    net_loadLinks();                // descobre os vizinhos
-    tabs_resetconn();               // reseta o estado
-    nextHeartCheck = sys_getMilli() + options.heartcheck;       // ajusta tempo de heartcheck para não derrubar os vizinhos lodo de cara 
-    router_heartbeat();             // faz o heartbeat logo que acorda
 }

@@ -80,8 +80,14 @@ bool net_send(int node, szb_t *msg) {                                   // envio
         con_errorf("cheater!! %d is not your neighbour\n", node);
         return false;
     }
+    if (options.debugpacket) {
+        con_printf("[DEBUG] sending packet\n");
+    }
     if (options.errRate > 0) {                                          // simula a perda de pacotes já no envio
         if ((rand() % 100) < options.errRate) {
+            if (options.debuglost) {
+                con_printf("[DEBUG] packet lost\n");
+            }
             return true;
         }
     }
@@ -113,6 +119,9 @@ bool net_recv(int *pnode, szb_t *msg) {                                 // receb
     szb_resize(msg, recvlen);
     if (szb_read8(msg) != CMD_ORDER) {              // pequeno hack para evitar que as ordens impeçam a identificação de nós dormindo
         nodes[node].lastTime = sys_getMilli();      // registra a hora que chegou essa mensagem. Utiliza-se isso para identificar nós caídos
+        if (options.debugpacket) {
+            con_printf("[DEBUG] receiving packet\n");
+        }
     }
     szb_rewind(msg);                                // posiciona a leitura no início do buffer
     if (pnode != NULL) {

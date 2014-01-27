@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include "defs.h"
 
-static table_t *mvec;       // vetor de distâncias, roteamento etc
-static table_t *mtab;       // armazena o vetor-distância recebido pelos vizinhos
+static table_t *mvec = NULL;       // vetor de distâncias, roteamento etc
+static table_t *mtab = NULL;       // armazena o vetor-distância recebido pelos vizinhos
 
 struct mtab_s {
     int distance;           // a tabelona só tem a distância mesmo
@@ -36,14 +36,6 @@ void tabs_init(void) {                              // inicializa este módulo
     defvec.inseqno = 0;                             // sequenciamento começa em 0
     defvec.outseqno = 0;
     mvec = tab_create(&defvec, sizeof(mvec_t));
-}
-
-void tabs_resetconn(void) {                         // toda vez que simula um "reset" do roteador, zera o sequenciamento
-    int count = num_destinations();
-    for (int i = 0; i < count; i++) {
-        set_node_inseqno(i, 0);
-        set_node_outseqno(i, 0);
-    }
 }
 
 void tabs_cleanup(void) {                           // libera a memória utilizada por este módulo
@@ -83,7 +75,7 @@ void drop_neighbour(int node) {                     // quando detecta que o vizi
     }
     //set_rt_distance(node, -1);          
     if (options.show_dropadd) {
-        con_printf("dropping node %d\n", node);
+        con_printf("[DEBUG] dropping node %d\n", node);
     }
 }
 
@@ -102,7 +94,7 @@ bool add_neighbour(int node) {                  // vamos adicionar um vizinho
     vec.distance = vec.cost;                    // já que até agora não era vizinho, coloca o acesso direto como via de acesso
     tab_set(mvec, 0, node, &vec);
     if (options.show_dropadd) {
-        con_printf("adding node %d\n", node);
+        con_printf("[DEBUG] adding node %d\n", node);
     }
     return true;
 }
@@ -214,18 +206,18 @@ int num_destinations(void) {                        // pega o número total de d
     return max(tab_cols(mvec), tab_cols(mtab));
 }
 
-void print_tabs(void) {                             // imprima a tabela de roteamento e a tabelona de DVs
-
+static void internal_print_hline(int size) {
     int i;
-    int size;
-
-    size = num_destinations();
 
     con_printf("  +");
     for (i = 0; i < size; i++) {
         con_printf("----");
     }
     con_printf("+\n");
+}
+
+static void internal_print_numbers(int size) {
+    int i;
 
     con_printf("  |");
     for (i = 0; i < size; i++) {
@@ -233,11 +225,10 @@ void print_tabs(void) {                             // imprima a tabela de rotea
     }
     con_printf("|\n");
 
-    con_printf("  +");
-    for (i = 0; i < size; i++) {
-        con_printf("----");
-    }
-    con_printf("+\n");
+}
+
+static void internal_print_distances(int size) {
+    int i;
 
     con_printf("D |");
     for (i = 0; i < size; i++) {
@@ -249,6 +240,10 @@ void print_tabs(void) {                             // imprima a tabela de rotea
         }
     }
     con_printf("|\n");
+}
+
+static void internal_print_via(int size) {
+    int i;
 
     con_printf("V |");
     for (i = 0; i < size; i++) {
@@ -260,6 +255,10 @@ void print_tabs(void) {                             // imprima a tabela de rotea
         }
     }
     con_printf("|\n");
+}
+
+static void internal_print_neighbours(int size) {
+    int i;
 
     con_printf("N |");
     for (i = 0; i < size; i++) {
@@ -271,12 +270,10 @@ void print_tabs(void) {                             // imprima a tabela de rotea
         }
     }
     con_printf("|\n");
+}
 
-    con_printf("  +");
-    for (i = 0; i < size; i++) {
-        con_printf("----");
-    }
-    con_printf("+\n");
+static void internal_print_dvtab(int size) {
+    int i;
 
     for (int n = 0; n < size; n++) {
         if (!is_neighbour(n)) {
@@ -293,11 +290,27 @@ void print_tabs(void) {                             // imprima a tabela de rotea
         }
         con_printf("|\n");
     }
+}
 
+static void internal_print_rtab(int size) {
+    internal_print_hline(size);
+    internal_print_numbers(size);
+    internal_print_hline(size);
+    internal_print_distances(size);
+    internal_print_via(size);
+}
 
-    con_printf("  +");
-    for (i = 0; i < size; i++) {
-        con_printf("----");
-    }
-    con_printf("+\n");
+void print_rtab(void) {
+    int size = num_destinations();
+    internal_print_rtab(size);
+    internal_print_hline(size);
+}
+
+void print_tabs(void) {                             // imprima a tabela de roteamento e a tabelona de DVs
+    int size = num_destinations();
+    internal_print_rtab(size);
+    internal_print_neighbours(size);
+    internal_print_hline(size);
+    internal_print_dvtab(size);
+    internal_print_hline(size);
 }

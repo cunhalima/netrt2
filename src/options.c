@@ -14,6 +14,7 @@ void opt_readArgs(int argc, char **argv) {              // lê as opções passa
     options.infinity = 100;
     options.rtimeout = 1000;
     options.rattempts = 3;
+    options.ttl = 10;
     for (i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             switch(argv[i][1]) {
