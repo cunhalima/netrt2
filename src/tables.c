@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "defs.h"
 
+// tabela redimensionável
+
 struct table_s {
     int itemsize;
     int rows, cols;

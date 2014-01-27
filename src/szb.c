@@ -4,6 +4,8 @@
 #include <assert.h>
 #include "defs.h"
 
+// vetor redimensionável simples
+
 struct szb_s {
     int pos;
     int size;

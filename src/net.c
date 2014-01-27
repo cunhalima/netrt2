@@ -28,33 +28,23 @@ static node_t *nodes = NULL;
 static int numNodes;
 static int sock = -1;
 
-/*------------------------------
- * net_init()
- *------------------------------
- * Esta funcao inicializa o sistema de comunicacao.
- */
-static int getNodeFromAddr(struct sockaddr_in *sin) {
+static int getNodeFromAddr(struct sockaddr_in *sin) {                   // pega o número do nó a partir do endereço IP
     int i;
 
     assert(sin != NULL);
     if (nodes == NULL) {
         return INVALID_NODE;
     }
-    for (i = 0; i < numNodes; i++) {
+    for (i = 0; i < numNodes; i++) {                                    // varrea os IPs conhecidos procurando o número do nó
         if (nodes[i].sin.sin_addr.s_addr == sin->sin_addr.s_addr &&
             nodes[i].sin.sin_port == sin->sin_port) {
             return i;
         }
     }
-    return INVALID_NODE;
+    return INVALID_NODE;                                                // não achou esse IP
 }
 
-/*------------------------------
- * net_init()
- *------------------------------
- * Esta funcao inicializa o sistema de comunicacao.
- */
-bool net_secretsend(int node, szb_t *msg) {
+bool net_secretsend(int node, szb_t *msg) {                             // envio secreto (envia para qquer destino diretamente (debug)
     int sendlen;
 
     assert(msg != NULL);
@@ -62,7 +52,7 @@ bool net_secretsend(int node, szb_t *msg) {
         con_errorf("invalid node number: %d\n", node);
         return false;
     }
-    if (!nodes[node].valid) {
+    if (!nodes[node].valid) {                                           // só manda pra destinos válidos
         return false;
     }
     sendlen = sendto(sock,
@@ -78,12 +68,7 @@ bool net_secretsend(int node, szb_t *msg) {
     return true;
 }
 
-/*------------------------------
- * net_init()
- *------------------------------
- * Esta funcao inicializa o sistema de comunicacao.
- */
-bool net_send(int node, szb_t *msg) {
+bool net_send(int node, szb_t *msg) {                                   // envio normal
     int sendlen;
 
     assert(msg != NULL);
@@ -91,11 +76,11 @@ bool net_send(int node, szb_t *msg) {
         con_errorf("invalid node number: %d\n", node);
         return false;
     }
-    if (!is_neighbour(node)) {
+    if (!is_neighbour(node)) {                                          // só permite enviar para vizinhos
         con_errorf("cheater!! %d is not your neighbour\n", node);
         return false;
     }
-    if (options.errRate > 0) {
+    if (options.errRate > 0) {                                          // simula a perda de pacotes já no envio
         if ((rand() % 100) < options.errRate) {
             return true;
         }
@@ -103,20 +88,14 @@ bool net_send(int node, szb_t *msg) {
     return net_secretsend(node, msg);
 }
 
-
-/*------------------------------
- * net_init()
- *------------------------------
- * Esta funcao inicializa o sistema de comunicacao.
- */
-bool net_recv(int *pnode, szb_t *msg) {
+bool net_recv(int *pnode, szb_t *msg) {                                 // recebe um pacote
     int recvlen;
     struct sockaddr_in sin;
     socklen_t slen;
 
     assert(msg != NULL);
     slen = sizeof(sin);
-    szb_resize(msg, MAX_PACKET_SIZE);
+    szb_resize(msg, MAX_PACKET_SIZE);                                   // prepara o buffer para receber o nosso pacote
     recvlen = recvfrom(sock,
         szb_getPtr(msg),
         szb_getSize(msg),
@@ -129,13 +108,13 @@ bool net_recv(int *pnode, szb_t *msg) {
         }
         return false;
     }
-    int node = getNodeFromAddr(&sin);
+    int node = getNodeFromAddr(&sin);                                   // obtém o nó de origem a partir de seu IP
     szb_rewind(msg);
     szb_resize(msg, recvlen);
-    if (szb_read8(msg) != 102) { //CMD_ORDER) { HACK!!!!
-        nodes[node].lastTime = sys_getMilli();
+    if (szb_read8(msg) != CMD_ORDER) {              // pequeno hack para evitar que as ordens impeçam a identificação de nós dormindo
+        nodes[node].lastTime = sys_getMilli();      // registra a hora que chegou essa mensagem. Utiliza-se isso para identificar nós caídos
     }
-    szb_rewind(msg);
+    szb_rewind(msg);                                // posiciona a leitura no início do buffer
     if (pnode != NULL) {
         *pnode = node;
     }
@@ -206,22 +185,22 @@ bool net_loadLinks() {
         con_errorf("unable to open %s\n", filename);
         return false;
     }
-    set_neighbour_cost(options.id, 0);
-    set_rt_via(options.id, -1);
-    set_rt_distance(options.id, 0);
-    set_dv_distance(options.id, options.id, 0);
+    set_neighbour_cost(options.id, 0);                              // nosso nó tem custo 0
+    set_rt_via(options.id, -1);                                     // não é alcançável por nenhum lado
+    set_rt_distance(options.id, 0);                                 // distancia 0 obviamente
+    set_dv_distance(options.id, options.id, 0);                     // na tabelona de DVs tb distancia 0
     while(fscanf(file, "%d %d %d", &a, &b, &cost) == 3) {
         int neighbour;
 
-        if (a == options.id) {
+        if (a == options.id) {                              // pega os vizinhos deste nosso nó
             neighbour = b;
         } else if (b == options.id) {
             neighbour = a;
         } else {
             continue;
         }
-        set_neighbour_cost(neighbour, cost);
-        add_neighbour(neighbour);
+        set_neighbour_cost(neighbour, cost);                // e ajusta o custo deles
+        add_neighbour(neighbour);                           // e adiciona como vizinho
     }
     fclose(file);
     return true;
@@ -246,7 +225,7 @@ bool net_init(void) {
         con_errorf("socket allocation error\n");
         return false;
     }
-    if (bind(sock, (struct sockaddr *)&nodes[options.id].sin, sizeof(nodes[options.id].sin)) == -1) {
+    if (bind(sock, (struct sockaddr *)&nodes[options.id].sin, sizeof(nodes[options.id].sin)) == -1) {       // prepara o socket
         close(sock);
         sock = -1;
         con_errorf("socket bind error\n");
@@ -255,12 +234,7 @@ bool net_init(void) {
     return true;
 }
 
-/*------------------------------
- * net_init()
- *------------------------------
- * Esta funcao inicializa o sistema de comunicacao.
- */
-void net_cleanup(void) {
+void net_cleanup(void) {                // libera tudo
     if (sock != -1) {
         close(sock);
         sock = -1;
@@ -269,12 +243,7 @@ void net_cleanup(void) {
     nodes = NULL;
 }
 
-/*------------------------------
- * net_init()
- *------------------------------
- * Esta funcao inicializa o sistema de comunicacao.
- */
-int net_lastTime(int node) {
+int net_lastTime(int node) {                // pega a última vez q o nó nos enviou alguma coisa
     if (node < 0 || node >= numNodes) {
         con_errorf("invalid node number: %d\n", node);
         return 0;
@@ -282,7 +251,7 @@ int net_lastTime(int node) {
     return nodes[node].lastTime;
 }
 
-int net_nextNode(int node) {
+int net_nextNode(int node) {                // iterativamente passa pelos nós (todos eles)
     node = node + 1;
     if (node < 0 || node >= numNodes) {
         return -1;

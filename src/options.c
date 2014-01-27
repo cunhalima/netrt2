@@ -5,7 +5,7 @@
 
 options_t options;
 
-void opt_readArgs(int argc, char **argv) {
+void opt_readArgs(int argc, char **argv) {              // lê as opções passadas pela linha de comando
     int i;
 
     memset(&options, 0, sizeof(options));
