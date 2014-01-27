@@ -23,10 +23,10 @@
 /debugroute 1
 
 # Tire o comentário da linha abaixo para habilitar msgs de debug de pacotes perdidos
-/debuglost 0
+/debuglost 1
 
 # Tire o comentário da linha abaixo para habilitar msgs de debug de pacotes
-/debugpacket 0
+/debugpacket 1
 
 # Tire o comentário da linha abaixo para habilitar msgs de debug de roteamento
 /debugrt 1

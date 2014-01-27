@@ -18,21 +18,6 @@ void opt_readArgs(int argc, char **argv) {              // lê as opções passa
     for (i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             switch(argv[i][1]) {
-            case 'i':
-                if (i + 1 < argc) {
-                    options.infinity = atoi(argv[++i]);
-                }
-                break;
-            case 'b':
-                if (i + 1 < argc) {
-                    options.heartbeat = atoi(argv[++i]);
-                }
-                break;
-            case 'c':
-                if (i + 1 < argc) {
-                    options.heartcheck = atoi(argv[++i]);
-                }
-                break;
             case 'e':
                 if (i + 1 < argc) {
                     options.errRate = atoi(argv[++i]);
